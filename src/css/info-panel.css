@@ -1,0 +1,45 @@
+.panel {
+    outline: 1px solid black;
+    float: right;
+    width: 20%;
+    text-align: center;
+    padding-bottom: 20%;
+    position: top;
+    padding: 2%;
+}
+
+.header {
+    font-size: xx-large;
+    font-weight: bolder;
+}
+
+.binary-value {
+    font-family: monospace;
+    font-size: large;
+}
+
+.decimal-value {
+    font-family: monospace;
+    font-size: large;
+}
+
+.upgrades-panel {
+    outline: 1px solid black;
+    display: flex;
+    gap: 10%;
+    row-gap: 10%;
+    column-gap: 10%;
+    flex-direction: column;
+    padding: 2%;
+    flex-wrap: column;
+}
+
+.upgrades-header {
+    text-align: left;
+    font-weight: bold;
+}
+
+.upgrade {
+    outline: 1px solid black;
+    text-align: center;
+}
