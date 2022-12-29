@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { Purchase } from './purchase';
-import { padStart } from './util/strings';
+import { Strings } from './util/strings';
 
 export type DiskSchema = z.infer<typeof Disk.CODEC>;
 
@@ -18,54 +18,10 @@ export class Disk {
         return disk;
     }
 
-    _storage: number;
-    _bits: number = 0;
-    _id: number;
-
-    constructor(id: number, storage: number) {
-        this._storage = storage;
-        this._id = id;
-    }
-
-    get storage() {
-        return this._storage;
-    }
-    
-    get bits() {
-        return this._bits;
-    }
-
-    get binaryBits(): string {
-        const binary = this._bits.toString(2);
-        return padStart(binary, this._storage, "0");
-    }
-
-    get capacity() {
-        return 2 ** this._storage - 1;
-    }
-
-    increment(bits: number = 1): void {
-        if(this._bits < this.capacity) this._bits += bits;
-        if(this._bits > this.capacity) this._bits = this.capacity;
-        // if(this.value >= 2 ** this.storage) this.value = 0; // overflow
-    }
-
-    /**
-     * @param bits The maximum number of bits to deplete from this disk (can be larger than current value)
-     * @returns The number of bits that were able to be removed from this disk
-     */
-    drain(bits: number): number {
-        const depleted = Math.min(bits, this._bits);
-        this._bits -= depleted;
-        return depleted;
-    }
-
-    private set bits(value: number) {
-        this._bits = value;
-    }
+    readonly id: number;
 
     get diskLetter() {
-        let letterID = this._id + 2;
+        let letterID = this.id + 2;
         const digits = [];
         while(letterID > 0) {
             const nextDigit = letterID % 26 + 1;
@@ -80,25 +36,67 @@ export class Disk {
         return `${this.storage}b Disk (${this.diskLetter}:)`
     }
 
+    _storage: number;
+    get storage() {
+        return this._storage;
+    } private set storage(storage: number) {
+        this._storage = storage;
+    }
+
+    get capacity() {
+        return 2 ** this._storage - 1;
+    }
+
     get storageUpgrade(): Purchase {
         return new Purchase(
-            "Upgrade Storage",
-            this.capacity * 3.75 * (3 ** this._id),
-            () => {
-                this._storage *= 2;
-            },
+            "x2 Storage",
+            this.capacity * 3.75 * (3 ** this.id),
+            () => this.storage *= 2,
         );
     }
 
-    upgradeStorage(): void {
-        this._storage *= 2;
+    _bits: number = 0;
+    get bits() {
+        return this._bits;
+    } private set bits(bits: number) {
+        this._bits = bits;
     }
 
-    get id() {
-        return this._id;
+    get binaryBits(): string {
+        const binary = this._bits.toString(2);
+        return Strings.padStart(binary, this._storage, "0");
+    }
+
+    get isFull(): boolean {
+        return this.bits >= this.capacity;
     }
 
     get schema(): DiskSchema {
         return Disk.CODEC.parse(this);
+    }
+
+    constructor(id: number, storage: number) {
+        this._storage = storage;
+        this.id = id;
+    }
+
+    increment(bits: number = 1): void {
+        if(this.bits < this.capacity) this.bits += bits;
+        if(this.bits > this.capacity) this.bits = this.capacity;
+        // if(this.value >= 2 ** this.storage) this.value = 0; // overflow
+    }
+
+    /**
+     * @param bits The maximum number of bits to deplete from this disk (can be larger than current value)
+     * @returns The number of bits that were able to be removed from this disk
+     */
+    drain(bits: number): number {
+        const depleted = Math.min(bits, this.bits);
+        this.bits -= depleted;
+        return depleted;
+    }
+
+    upgradeStorage(): void {
+        this.storage *= 2;
     }
 }

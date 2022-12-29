@@ -1,19 +1,21 @@
 <script setup lang="ts">
-import { player} from '@/ts/player';
+import { player } from '@/ts/player';
 import InfoPanel from './InfoPanel.vue';
 import { getCurrentInstance } from 'vue';
 import { registerComponent } from '@/ts/component-registry';
+import ObjectsContainer from './ObjectsContainer.vue';
+import DebugInfo from './DebugInfo.vue';
 
 registerComponent(getCurrentInstance());
 </script>
 
 <template>
     <div class="bit-counter">
-        You have {{ player.bits }}b / {{ player.maxStorage }}b
+        You have {{ player.bits }}b
     </div>
     <div class="containers-container">
-        <div class="objects-container">
-            <div class="several-container">
+        <div class="objects-containers">
+            <ObjectsContainer :header="'Disks'" :info="`Used ${player.bits}b / ${player.maxStorage}b`">
                 <div class="disk" v-for="disk in player.disks" @click="player.interactWithDisk(disk)">
                     <span class="disk-header">{{ disk.name }}</span><br><br>
                     <span class="disk-value">{{ disk.binaryBits }}</span>
@@ -22,8 +24,13 @@ registerComponent(getCurrentInstance());
                     <span class="disk-header">Buy 4b Disk</span><br><br>
                     <span class="disk-info">Cost: {{ player.nextDiskPurchase.cost }}b</span>
                 </div>
-            </div>
-            <div class="several-container" v-if="player.bits >= 60">
+            </ObjectsContainer>
+            <br>
+            <ObjectsContainer
+                :header="'Chips'"
+                :info="`Computing ${player.stats.bitsPerSecond}b/s`"
+                v-if="player.stats.chipsUnlocked"
+            >
                 <div class="disk" v-for="chip in player.chips" @click="player.interactWithChip(chip)">
                     <span class="disk-header">{{ chip.name }}</span><br><br>
                     <!-- <span class="disk-value">{{ disk.getBinaryValue() }}</span> -->
@@ -32,10 +39,11 @@ registerComponent(getCurrentInstance());
                     <span class="disk-header">{{ player.nextChipPurchase.name }}</span><br><br>
                     <span class="disk-info">Cost: {{ player.nextChipPurchase.cost }}b</span>
                 </div>
-            </div>
+            </ObjectsContainer>
         </div>
-        <InfoPanel :selection="player.selection"></InfoPanel>
+        <InfoPanel :selection="player.selection" />
     </div>
+    <DebugInfo />
 </template>
 
 <style>
@@ -52,24 +60,12 @@ html {
     margin-bottom: 10px;
 }
 
-.several-container {
-    width: 900px;
-    display: flex;
-    border: 1px solid black;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 2%;
-    padding: 2%;
-    column-gap: 2%;
-}
-
 .disk {
     border: 3px solid black;
     width: 10%;
     height: 0;
     padding-bottom: 10%;
     text-align: center;
-    margin-bottom: 2%;
 }
 
 .disk-header {

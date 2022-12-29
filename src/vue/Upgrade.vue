@@ -13,7 +13,7 @@ defineProps({
 });
 </script>
 
-<template :key="performance.now()">
+<template>
     <div class="upgrade" @click="player.buyPurchase(upgrade)">
         <span>{{ upgrade.name }}</span><br>
         <span>Cost: {{ upgrade.cost }}b</span><br>

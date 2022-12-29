@@ -3,65 +3,79 @@ import { z } from 'zod';
 import { Purchase } from './purchase';
 
 import type { Disk } from "./disk";
+import { CostManager } from './cost-manager';
 
 export type ChipSchema = z.infer<typeof Chip.CODEC>;
 
 export class Chip {
     static readonly CODEC = z.object({
         clockSpeed: z.number(),
+        targetDiskID: z.nullable(z.number()),
     });
 
-    static fromSchema(schema: ChipSchema): Chip {
+    static fromSchema(schema: ChipSchema, disks: Disk[]): Chip {
         const chip = new Chip();
         chip._clockSpeed = schema.clockSpeed;
+        chip.targetDisk = disks.find(disk => disk.id === schema.targetDiskID) ?? null;
         return chip;
     }
 
     private _clockSpeed = 1; /** Unit: Hz */
-    private _targetDisk: Disk | null = null;
-    private _clockSpeedUpgradePrice = 150;
-    private _lastUpdate: number = -1;
+    get clockSpeed() {
+        return this._clockSpeed;
+    } private set clockSpeed(clockSpeed: number) {
+        this._clockSpeed = clockSpeed;
+    }
+
+    public targetDisk: Disk | null = null;
+
+    // used in schema
+    private get targetDiskID(): number | null {
+        return this.targetDisk?.id ?? null;
+    }
+
+    private readonly clockSpeedCostManager: CostManager = new CostManager(150, (amount, prevCost) => {
+        return prevCost ** 1.1;
+    }, {
+        initialAmount: 1,
+        incrementer: prevAmount => prevAmount * 2,
+    });
+
+    get clockSpeedUpgradePrice(): number {
+        return this.clockSpeedCostManager.getNextCostAt(this.clockSpeed);
+    }
+
+    private lastUpdate: number = -1;
 
     get name(): string {
-        return `${this._clockSpeed}Hz Chip`;
+        return `${this.clockSpeed}Hz Chip`;
     }
 
     get clockSpeedUpgrade(): Purchase {
         return new Purchase(
             "x2 Clock Speed",
-            this._clockSpeedUpgradePrice,
-            () => {
-                this._clockSpeed *= 2;
-                this._clockSpeedUpgradePrice **= 1.1;
-            }
+            this.clockSpeedUpgradePrice,
+            () => this._clockSpeed *= 2,
         );
-    }
-
-    get targetDisk() {
-        return this._targetDisk;
-    }
-
-    set targetDisk(disk: Disk | null) {
-        this._targetDisk = disk;
-    }
-
-    cycle(): void {
-        if(this._targetDisk === null) return;
-
-        if(this._lastUpdate === -1) this._lastUpdate = performance.now();
-
-        const timeBetweenCycles = (1000 / this._clockSpeed);
-        while(performance.now() >= this._lastUpdate + timeBetweenCycles) {
-            this._targetDisk.increment();
-            this._lastUpdate += timeBetweenCycles;
-        }
-    }
-
-    get clockSpeed() {
-        return this._clockSpeed;
     }
 
     get schema(): ChipSchema {
         return Chip.CODEC.parse(this);
+    }
+
+    get bitsPerSecond(): number {
+        return this.targetDisk !== null && !this.targetDisk.isFull ? this.clockSpeed : 0;
+    }
+
+    cycle(): void {
+        if(this.targetDisk === null) return;
+
+        if(this.lastUpdate === -1) this.lastUpdate = performance.now();
+
+        const timeBetweenCycles = (1000 / this.clockSpeed);
+        while(performance.now() >= this.lastUpdate + timeBetweenCycles) {
+            this.targetDisk.increment();
+            this.lastUpdate += timeBetweenCycles;
+        }
     }
 }

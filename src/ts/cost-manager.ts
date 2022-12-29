@@ -1,45 +1,50 @@
 export class CostManager {
-    private _initialCost: number;
-    private _minAmount: number;
-    private _calculator: (amount: number, prevCost: number) => number;
-    private _lastComputedAmount: number | null = null;
-    private _lastComputedCost: number = 0;
+    private initialCost: number;
+    private initialAmount: number;
+    private calculator: (amount: number, prevCost: number) => number;
+    private incrementer: (prevAmount: number) => number;
+    private lastComputedAmount: number | null = null;
+    private lastComputedCost: number = 0;
 
     public constructor(
         initialCost: number,
         calculator: (amount: number, prevCost: number) => number,
-        minAmount: number = 0
+        options?: {
+            initialAmount?: number,
+            incrementer?: (prevAmount: number) => number,
+        }
     ) {
-        this._initialCost = initialCost;
-        this._minAmount = minAmount;
-        this._calculator = calculator;
+        this.initialCost = initialCost;
+        this.initialAmount = options?.initialAmount ?? 0;
+        this.calculator = calculator;
+        this.incrementer = options?.incrementer ?? ((prevAmount: number) => prevAmount + 1);
     }
 
-    public getFor(amount: number): number {
+    public getNextCostAt(amount: number): number {
         if(Number.isSafeInteger(amount) === false) throw new Error("Amount must be a safe integer");
         
-        if(amount !== this._lastComputedAmount) {
-            this._lastComputedCost = this._calculateCost(amount);
-            this._lastComputedAmount = amount;
+        if(amount !== this.lastComputedAmount) {
+            this.lastComputedCost = this.calculateCost(amount);
+            this.lastComputedAmount = amount;
         }
-        return this._lastComputedCost;
+        return this.lastComputedCost;
     }
 
-    private _calculateCost(amount: number): number {
+    private calculateCost(amount: number): number {
         if(Number.isSafeInteger(amount) === false) throw new Error("Amount must be a safe integer");
 
         let startAmount: number;
         let cost: number;
-        if(this._lastComputedAmount === null || amount < this._lastComputedAmount) {
-            cost = this._initialCost;
-            startAmount = this._minAmount;
+        if(this.lastComputedAmount === null || amount < this.lastComputedAmount) {
+            cost = this.initialCost;
+            startAmount = this.initialAmount;
         } else {
-            cost = this._lastComputedCost;
-            startAmount = this._lastComputedAmount;
+            cost = this.lastComputedCost;
+            startAmount = this.lastComputedAmount;
         }
 
-        for(let i = startAmount + 1; i <= amount; i++) {
-            cost = this._calculator(i, cost);
+        for(let i = this.incrementer(startAmount); i <= amount; i = this.incrementer(i)) {
+            cost = this.calculator(i, cost);
         }
         
         return cost;

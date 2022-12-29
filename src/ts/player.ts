@@ -6,6 +6,7 @@ import { db } from './db';
 import { Disk } from './disk';
 import { Purchase } from './purchase';
 import { base64ToUTF8, utf8ToBase64 } from './util/crypt';
+import { PlayerStats } from './player-stats';
 
 export type SaveDataSchema = z.infer<typeof Player.SAVE_DATA_CODEC>;
 
@@ -15,13 +16,33 @@ export class Player {
     static readonly SAVE_DATA_CODEC = z.object({
         disks: z.array(Disk.CODEC),
         chips: z.array(Chip.CODEC),
+        stats: PlayerStats.CODEC,
     });
 
+    private constructor() { }
+
     private _bits: number = 0;
+    get bits(): number {
+        return this._bits;
+    } private set bits(bits: number) {
+        this._bits = bits;
+    }
+
     private _disks: Disk[] = [
         new Disk(0, 4),
     ];
+    get disks(): Disk[] {
+        return this._disks;
+    } private set disks(disks: Disk[]) {
+        this._disks = disks;
+    } 
+
     private _chips: Chip[] = [];
+    get chips(): Chip[] {
+        return this._chips;
+    } private set chips(chips: Chip[]) {
+        this._chips = chips;
+    }
 
     private _diskCostManager: CostManager = new CostManager(
         10,
@@ -29,8 +50,11 @@ export class Player {
             if(amount < 4) return prevCost ** 1.15;
             else return prevCost ** 1.9;
         },
-        1,
+        {
+            initialAmount: 1,
+        },
     );
+
     private _chipCostManager: CostManager = new CostManager(
         100,
         (amount, prevCost) => {
@@ -39,29 +63,12 @@ export class Player {
         },
     );
 
-    private _selection: Disk | Chip | null = null;
-    private _lastSave: number = -1;
-
-    private constructor() { }
-
-    get bits(): number {
-        return this._bits;
-    }
-
-    get disks(): Disk[] {
-        return this._disks;
-    }
-
-    get chips(): Chip[] {
-        return this._chips;
-    }
-
     get nextDiskCost(): number {
-        return this._diskCostManager.getFor(this.disks.length);
+        return this._diskCostManager.getNextCostAt(this.disks.length);
     }
 
     get nextChipCost(): number {
-        return this._chipCostManager.getFor(this.chips.length);
+        return this._chipCostManager.getNextCostAt(this.chips.length);
     }
 
     get nextDiskPurchase(): Purchase {
@@ -69,7 +76,7 @@ export class Player {
             "Buy 4b Disk",
             this.nextDiskCost,
             player => {
-                player._disks.push(new Disk(this._disks.length, 4));
+                player.disks.push(new Disk(this.disks.length, 4));
                 
             },
         );
@@ -80,61 +87,16 @@ export class Player {
             "Buy 1Hz Chip",
             this.nextChipCost,
             player => {
-                player._chips.push(new Chip());
+                player.chips.push(new Chip());
             },
         );
     }
 
-    depleteBits(bits: number): void {
-        let diskIndex = this._disks.length - 1;
-        while(bits > 0) {
-            const disk = this._disks[diskIndex];
-            bits -= disk.drain(bits);
-            diskIndex--;
-        }
-    }
-
-    update(): void {
-        if(this._lastSave === -1) this._lastSave = performance.now();
-
-        if(performance.now() >= this._lastSave + 3000) {
-            db.save.put({
-                data: this.saveData,
-            }, 0);
-            console.log("Saved!");
-            this._lastSave = performance.now();
-        }
-
-        this._bits = this._disks.reduce((totalBits, disk) => totalBits += disk.bits, 0);
-        for(const chip of this._chips) {
-            chip.cycle();
-        }
-    }
-
-    interactWithDisk(disk: Disk): void {
-        this._selection = disk;
-        disk.increment();
-    }
-
-    interactWithChip(chip: Chip): void {
-        this._selection = chip;
-    }
-
+    private _selection: Disk | Chip | null = null;
     get selection(): Disk | Chip | null {
         return this._selection;
-    }
-
-    canAfford(cost: number): boolean {
-        return this._bits >= cost;
-    }
-
-    buyPurchase(purchase: Purchase): void {
-        const { cost, callback } = purchase;
-
-        if(this.canAfford(cost)) {
-            this.depleteBits(cost)
-            callback(this);
-        }
+    } private set selection(selection: Disk | Chip | null) {
+        this._selection = selection;
     }
 
     get maxStorage(): number {
@@ -147,15 +109,77 @@ export class Player {
 
     get saveData(): string {
         return utf8ToBase64(JSON.stringify(this.schema));
-    }
+    } set saveData(data: string | null) {
+        if(data == null) return;
 
-    set saveData(data: string) {
         const parsed = JSON.parse(base64ToUTF8(data));
         const decoded = Player.SAVE_DATA_CODEC.parse(parsed);
         console.log(decoded);
-        this._disks = decoded.disks.map(disk => Disk.fromSchema(disk));
-        this._chips = decoded.chips.map(chip => Chip.fromSchema(chip));
+        this.disks = decoded.disks.map(disk => Disk.fromSchema(disk));
+        this.chips = decoded.chips.map(chip => Chip.fromSchema(chip, this.disks));
+        this.stats.schema = decoded.stats;
         console.log("Imported save data!");
+    }
+
+    private _lastSaveTime: number = -1;
+    get lastSaveTime(): number {
+        return this._lastSaveTime;
+    } private set lastSaveTime(lastSaveTime: number) {
+        this._lastSaveTime = lastSaveTime;
+    }
+
+    readonly stats: PlayerStats = new PlayerStats();
+
+    depleteBits(bits: number): void {
+        let diskIndex = this.disks.length - 1;
+        while(bits > 0) {
+            const disk = this.disks[diskIndex];
+            bits -= disk.drain(bits);
+            diskIndex--;
+        }
+    }
+
+    save(): void {
+        db.save.put({
+            data: this.saveData,
+        }, 0);
+        console.log("Saved!");
+        this.lastSaveTime = performance.now();
+    }
+
+    update(): void {
+        if(this.lastSaveTime === -1) this.lastSaveTime = performance.now();
+
+        if(performance.now() >= this.lastSaveTime + 10000) this.save();
+
+        for(const chip of this.chips) {
+            chip.cycle();
+        }
+        this.bits = this.disks.reduce((totalBits, disk) => totalBits += disk.bits, 0);
+
+        this.stats.update(this);
+    }
+
+    interactWithDisk(disk: Disk): void {
+        this.selection = disk;
+        disk.increment();
+    }
+
+    interactWithChip(chip: Chip): void {
+        this.selection = chip;
+    }
+
+    canAfford(cost: number): boolean {
+        return this.bits >= cost;
+    }
+
+    buyPurchase(purchase: Purchase): void {
+        const { cost, callback } = purchase;
+
+        if(this.canAfford(cost)) {
+            this.depleteBits(cost)
+            callback(this);
+        }
     }
 }
 
