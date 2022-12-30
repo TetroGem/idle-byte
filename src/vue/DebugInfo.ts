@@ -1,3 +1,4 @@
+import { db } from "@/ts/db";
 import { player } from "@/ts/player";
 
 const data = generate();
@@ -7,6 +8,12 @@ function generate() {
         savedOpacity: Math.max(1 - (performance.now() - player.lastSaveTime) / 5000, 0),
         exportSaveData: () => prompt("Copy your save data from below:", player.saveData),
         importSaveData: () => player.saveData = prompt("Enter your save data:"),
+        resetSaveData: () => {
+            if(confirm("Are you sure you want to reset your save data?")) {
+                db.save.clear();
+                location.reload();
+            }
+        }
     };
 }
 

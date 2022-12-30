@@ -7,6 +7,7 @@ import { Disk } from './disk';
 import { Purchase } from './purchase';
 import { base64ToUTF8, utf8ToBase64 } from './util/crypt';
 import { PlayerStats } from './player-stats';
+import { Cloud } from './cloud';
 
 export type SaveDataSchema = z.infer<typeof Player.SAVE_DATA_CODEC>;
 
@@ -15,6 +16,7 @@ export class Player {
     static readonly SAVE_DATA_CODEC = z.object({
         disks: z.array(Disk.CODEC),
         chips: z.array(Chip.CODEC),
+        cloud: Cloud.CODEC,
         stats: PlayerStats.CODEC,
     });
     static readonly AUTOSAVE_COOLDOWN = 10000;
@@ -26,6 +28,16 @@ export class Player {
         return this._bits;
     } private set bits(bits: number) {
         this._bits = bits;
+    }
+
+    private readonly cloud: Cloud = new Cloud();
+
+    get bitsOnDisks(): number {
+        return this.disks.reduce((totalBits, disk) => totalBits += disk.bits, 0);
+    }
+
+    get bitsOnCloud(): number {
+        return this.cloud.bits;
     }
 
     private _disks: Disk[] = [
@@ -105,6 +117,12 @@ export class Player {
 
     get schema(): SaveDataSchema {
         return Player.SAVE_DATA_CODEC.parse(this);
+    } private set schema(schema: z.TypeOf<typeof Player.SAVE_DATA_CODEC>) {
+        this.disks = schema.disks.map(disk => Disk.fromSchema(disk));
+        this.chips = schema.chips.map(chip => Chip.fromSchema(chip, this.disks));
+        this.cloud.schema = schema.cloud;
+        this.stats.schema = schema.stats;
+        console.log("Imported save data!");
     }
 
     get saveData(): string {
@@ -114,11 +132,7 @@ export class Player {
 
         const parsed = JSON.parse(base64ToUTF8(data));
         const decoded = Player.SAVE_DATA_CODEC.parse(parsed);
-        console.log(decoded);
-        this.disks = decoded.disks.map(disk => Disk.fromSchema(disk));
-        this.chips = decoded.chips.map(chip => Chip.fromSchema(chip, this.disks));
-        this.stats.schema = decoded.stats;
-        console.log("Imported save data!");
+        this.schema = decoded;
     }
 
     private _lastSaveTime: number = -1;
@@ -134,13 +148,60 @@ export class Player {
 
     readonly stats: PlayerStats = new PlayerStats();
 
-    depleteBits(bits: number): void {
-        let diskIndex = this.disks.length - 1;
-        while(bits > 0) {
-            const disk = this.disks[diskIndex];
-            bits -= disk.drain(bits);
-            diskIndex--;
+    private decrementBits(bits: number): void {
+        const requestedBitsToDrain = bits;
+        let totalDrained = 0;
+        // drain bits from disks first
+        const drainedFromDisks = this.drainDisks(bits);
+        totalDrained += drainedFromDisks;
+        bits -= drainedFromDisks;
+        // then from cloud
+        if(bits > 0) {
+            const drainedFromCloud = this.cloud.drain(bits);
+            totalDrained += drainedFromCloud;
+            bits -= drainedFromCloud;
         }
+        // these should not be possible
+        if(bits > 0) {
+            alert("SERIOUS ERROR: Not enough bits to decrement!");
+            throw new Error("SERIOUS ERROR: Not enough bits to decrement!");
+        }
+        if(totalDrained > requestedBitsToDrain) {
+            alert("SERIOUS ERROR: Drained too many bits!");
+            throw new Error("SERIOUS ERROR: Drained too many bits!");
+        }
+    }
+
+    private drainDisks(bits: number): number {
+        const drainRecursive = (bits: number, disks: Disk[]): number => {
+            if(bits <= 0 || disks.length === 0) return 0;
+
+            let minBits = bits; // least amount of bits on a disk (or the amount to remove from all of them this round)
+            const sortedDisks = disks.slice().sort((a, b) => {
+                minBits = Math.min(minBits, a.bits, b.bits);
+                return (b.bits / b.capacity - a.bits / a.capacity) || (b.storage - a.storage);
+            });
+            if(minBits * sortedDisks.length > bits) minBits = Math.ceil(bits / sortedDisks.length);
+            // remove the minBits from each disk, starting with the one that has the most bits on it
+            let drained = 0;
+            for(const disk of sortedDisks) {
+                const diskDrained = disk.drain(Math.min(minBits, bits));
+                drained += diskDrained;
+                bits -= diskDrained;
+                if(bits <= 0) break;
+            }
+
+            // if we still have bits left, we need to remove more bits from each disk,
+            // minus the one with the least bits on it (it should be empty now)
+            return drainRecursive(bits, sortedDisks.slice(0, -1)) + drained;
+        }
+
+        const totalDrained = drainRecursive(bits, this.disks);
+        if(totalDrained > bits) {
+            alert("SERIOUS ERROR: Drained more bits than requested!");
+            throw new Error("SERIOUS ERROR: Drained more bits than requested!");
+        }
+        return totalDrained;
     }
 
     save(): void {
@@ -159,7 +220,9 @@ export class Player {
         for(const chip of this.chips) {
             chip.cycle();
         }
-        this.bits = this.disks.reduce((totalBits, disk) => totalBits += disk.bits, 0);
+        const uploadedBits = this.cloud.upload(this.bits);
+        this.decrementBits(uploadedBits);
+        this.bits = this.bitsOnDisks + this.bitsOnCloud;
 
         this.stats.update(this);
     }
@@ -181,9 +244,13 @@ export class Player {
         const { cost, callback } = purchase;
 
         if(this.canAfford(cost)) {
-            this.depleteBits(cost)
+            this.decrementBits(cost)
             callback(this);
         }
+    }
+
+    interactWithCloud(): void {
+        this.cloud.startUpload();
     }
 }
 

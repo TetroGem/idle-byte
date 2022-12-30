@@ -18,6 +18,7 @@ registerComponent(getCurrentInstance());
         <button @click="player.save()">Save</button>
         <button @click="debugInfo.exportSaveData()">Export</button>
         <button @click="debugInfo.importSaveData()">Import</button>
+        <button @click="debugInfo.resetSaveData()" style="background-color: pink">Reset</button>
     </div>
 </template>
 

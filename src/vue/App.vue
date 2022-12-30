@@ -15,7 +15,11 @@ registerComponent(getCurrentInstance());
     </div>
     <div class="containers-container">
         <div class="objects-containers">
-            <ObjectsContainer :header="'Disks'" :info="`Used ${player.bits}b / ${player.maxStorage}b`">
+            <ObjectsContainer :header="'Cloud'" :info="`Used ${player.bitsOnCloud}b`">
+                <div class="cloud" @click="player.interactWithCloud()">Upload to Cloud</div>
+            </ObjectsContainer>
+            <br />
+            <ObjectsContainer :header="'Disks'" :info="`Used ${player.bitsOnDisks}b / ${player.maxStorage}b`">
                 <div class="disk" v-for="disk in player.disks" @click="player.interactWithDisk(disk)">
                     <span class="disk-header">{{ disk.name }}</span><br><br>
                     <span class="disk-value">{{ disk.binaryBits }}</span>
@@ -25,7 +29,7 @@ registerComponent(getCurrentInstance());
                     <span class="disk-info">Cost: {{ player.nextDiskPurchase.cost }}b</span>
                 </div>
             </ObjectsContainer>
-            <br>
+            <br />
             <ObjectsContainer
                 :header="'Chips'"
                 :info="`Computing ${player.stats.bitsPerSecond}b/s`"
@@ -75,6 +79,12 @@ html {
 .disk-value {
     font-family: monospace;
     font-size: large;
+}
+
+.cloud {
+    border: 3px solid black;
+    width: 20%;
+    text-align: center;
 }
 
 .containers-container {
