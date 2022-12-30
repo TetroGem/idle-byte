@@ -12,12 +12,12 @@ export type SaveDataSchema = z.infer<typeof Player.SAVE_DATA_CODEC>;
 
 export class Player {
     static readonly INSTANCE = new Player();
-
     static readonly SAVE_DATA_CODEC = z.object({
         disks: z.array(Disk.CODEC),
         chips: z.array(Chip.CODEC),
         stats: PlayerStats.CODEC,
     });
+    static readonly AUTOSAVE_COOLDOWN = 10000;
 
     private constructor() { }
 
@@ -128,6 +128,10 @@ export class Player {
         this._lastSaveTime = lastSaveTime;
     }
 
+    get timeUntilAutosave(): number {
+        return this.lastSaveTime + Player.AUTOSAVE_COOLDOWN - performance.now();
+    }
+
     readonly stats: PlayerStats = new PlayerStats();
 
     depleteBits(bits: number): void {
@@ -150,7 +154,7 @@ export class Player {
     update(): void {
         if(this.lastSaveTime === -1) this.lastSaveTime = performance.now();
 
-        if(performance.now() >= this.lastSaveTime + 10000) this.save();
+        if(performance.now() >= this.lastSaveTime + Player.AUTOSAVE_COOLDOWN) this.save();
 
         for(const chip of this.chips) {
             chip.cycle();

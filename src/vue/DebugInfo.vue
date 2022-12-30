@@ -14,6 +14,7 @@ registerComponent(getCurrentInstance());
     </div>
     <div class="info right-side">
         <div class="saved" :style="{ opacity: debugInfo.savedOpacity }">Saved!</div>
+        <div>Next autosave in: {{ Math.ceil(player.timeUntilAutosave / 1000) }}s</div>
         <button @click="player.save()">Save</button>
         <button @click="debugInfo.exportSaveData()">Export</button>
         <button @click="debugInfo.importSaveData()">Import</button>
