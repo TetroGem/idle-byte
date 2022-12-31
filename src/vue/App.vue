@@ -5,43 +5,96 @@ import { getCurrentInstance } from 'vue';
 import { registerComponent } from '@/ts/component-registry';
 import ObjectsContainer from './ObjectsContainer.vue';
 import DebugInfo from './DebugInfo.vue';
+import { formatBinary, formatBits, formatTime } from '@/ts/format';
+import { estimateSecondsUntil } from '@/ts/estimate';
 
 registerComponent(getCurrentInstance());
 </script>
 
 <template>
     <div class="bit-counter">
-        You have {{ player.bits }}b
+        You have {{ formatBits(player.bits) }}
     </div>
     <div class="containers-container">
         <div class="objects-containers">
-            <ObjectsContainer :header="'Cloud'" :info="`Used ${player.bitsOnCloud}b`">
-                <div class="cloud" @click="player.interactWithCloud()">Upload to Cloud</div>
+            <ObjectsContainer
+                :header="'Cloud'"
+                :info="player.cloud === null ? undefined : `Used ${formatBits(player.bitsOnCloud)}, Uploading at ${formatBits(player.cloud.uploadSpeed)}/s`"
+                v-if="player.stats.cloudUnlocked"
+            >
+                <div
+                    class="cloud"
+                    @click="player.buyPurchase(player.cloudPurchase)"
+                    v-if="player.cloud === null"
+                    :style="{ backgroundColor: player.canAfford(player.cloudPurchase.cost) ? 'yellow' : 'white' }"
+                >
+                    <span class="disk-header">{{ player.cloudPurchase.name }}</span><br />
+                    <span>Cost: {{ formatBits(player.cloudPurchase.cost) }}</span>
+                </div>
+                <div
+                    class="cloud"
+                    @click="player.interactWithCloud()"
+                    v-if="player.cloud !== null"
+                    :style="{ backgroundColor: player.canAfford(player.cloud.uploadSpeedPurchase.cost) ? 'yellow' : 'white' }"
+                >
+                    Upload to Cloud
+                </div>
             </ObjectsContainer>
             <br />
-            <ObjectsContainer :header="'Disks'" :info="`Used ${player.bitsOnDisks}b / ${player.maxStorage}b`">
-                <div class="disk" v-for="disk in player.disks" @click="player.interactWithDisk(disk)">
+            <ObjectsContainer :header="'Disks'" :info="`Used ${formatBits(player.bitsOnDisks)} / ${formatBits(player.maxStorage)}, Full in ${formatTime(estimateSecondsUntil(player.bitsOnDisks, player.maxStorage, player.stats.bitsPerSecond))}`">
+                <div
+                    class="disk"
+                    v-for="disk in player.disks"
+                    @click="player.interactWithDisk(disk)"
+                    :style="{ backgroundColor: player.canAfford(disk.capacityPurchase.cost) ? 'yellow' : 'white' }"
+                >
                     <span class="disk-header">{{ disk.name }}</span><br><br>
-                    <span class="disk-value">{{ disk.binaryBits }}</span>
+                    <span
+                        class="disk-value"
+                        :style="{ fontSize: '1.25em' }"
+                    >
+                        {{ formatBits(disk.bits) }}
+                    </span>
                 </div>
-                <div class="disk disk-buy" @click="player.buyPurchase(player.nextDiskPurchase)">
-                    <span class="disk-header">Buy 4b Disk</span><br><br>
-                    <span class="disk-info">Cost: {{ player.nextDiskPurchase.cost }}b</span>
+                <div
+                    class="disk disk-buy"
+                    @click="player.buyPurchase(player.nextDiskPurchase)"
+                    :style="{ backgroundColor: player.canAfford(player.nextDiskPurchase.cost) ? 'yellow' : 'white' }"
+                >
+                    <span class="disk-header">{{ player.nextDiskPurchase.name }}</span><br><br>
+                    <span class="disk-info">Cost: {{ formatBits(player.nextDiskPurchase.cost) }}</span>
                 </div>
             </ObjectsContainer>
             <br />
             <ObjectsContainer
                 :header="'Chips'"
-                :info="`Computing ${player.stats.bitsPerSecond}b/s`"
+                :info="player.chips.length === 0 ? undefined : `Computing ${formatBits(player.stats.bitsPerSecond)}/s`"
                 v-if="player.stats.chipsUnlocked"
             >
-                <div class="disk" v-for="chip in player.chips" @click="player.interactWithChip(chip)">
+                <div
+                    class="disk"
+                    v-for="chip in player.chips"
+                    @click="player.interactWithChip(chip)"
+                    :style="{ backgroundColor:
+                        chip.targetDisk === null ? 'grey'
+                        : chip.bitsPerSecond === 0 ? 'red'
+                        : player.canAfford(chip.clockSpeedPurchase.cost) || player.canAfford(chip.overclockPurchase.cost) ? 'yellow'
+                        : 'white'
+                    }"
+                >
                     <span class="disk-header">{{ chip.name }}</span><br><br>
+                    <span class="disk-info">
+                        {{ chip.targetDisk === null ? '(Disabled)' : `(${chip.targetDisk.diskLetter}:)` }}
+                    </span>
                     <!-- <span class="disk-value">{{ disk.getBinaryValue() }}</span> -->
                 </div>
-                <div class="disk disk-buy" @click="player.buyPurchase(player.nextChipPurchase)">
+                <div
+                    class="disk disk-buy"
+                    @click="player.buyPurchase(player.nextChipPurchase)"
+                    :style="{ backgroundColor: player.canAfford(player.nextChipPurchase.cost) ? 'yellow' : 'white' }"
+                >
                     <span class="disk-header">{{ player.nextChipPurchase.name }}</span><br><br>
-                    <span class="disk-info">Cost: {{ player.nextChipPurchase.cost }}b</span>
+                    <span class="disk-info">Cost: {{ formatBits(player.nextChipPurchase.cost) }}</span>
                 </div>
             </ObjectsContainer>
         </div>

@@ -3,6 +3,7 @@ import type { Disk } from '@/ts/disk';
 import { getCurrentInstance, type PropType } from 'vue';
 import Upgrade from './Upgrade.vue';
 import { registerComponent } from '@/ts/component-registry';
+import { formatBinary, formatBits } from '@/ts/format';
 
 registerComponent(getCurrentInstance());
 
@@ -17,11 +18,11 @@ defineProps({
 <template>
     <div class="panel" v-if="disk">
         <span class="header">{{ disk.name }}</span><br>
-        <span class="binary-value">{{ disk.binaryBits }}</span><br>
-        <span class="decimal-value">({{ disk.storage }})</span><br><br>
+        <!-- <span class="binary-value">{{ formatBinary(disk.bits, disk.capacity) }}</span><br> -->
+        <span class="decimal-value">({{ formatBits(disk.bits) }})</span><br><br>
         <div class="upgrades-panel">
             <div class="upgrades-header">Upgrades</div>
-            <Upgrade :upgrade="disk.storageUpgrade"></Upgrade>
+            <Upgrade :upgrade="disk.capacityPurchase"></Upgrade>
         </div>
     </div>
 </template>

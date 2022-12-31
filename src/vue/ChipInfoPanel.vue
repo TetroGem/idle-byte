@@ -19,13 +19,23 @@ defineProps({
     <div class="panel" v-if="chip">
         <span class="header">{{ chip.name }}</span><br>
         Target Disk:
-        <select v-model="chip.targetDisk">
+        <select
+            v-model="chip.targetDisk"
+            :style="{ backgroundColor: chip.targetDisk === null ? 'yellow' : 'white' }"
+        >
             <option :value="null">None</option>
             <option v-for="disk in player.disks" :value="disk">{{ disk.name }}</option>
         </select>
+        <br />
+        <br />
+        <span v-if="chip.overclock > 0">
+            <div class="overclock" @click="chip.activateOverclock()">Overclock {{ chip.overclock }}</div>
+            <br />
+        </span>
         <div class="upgrades-panel">
             <div class="upgrades-header">Upgrades</div>
-            <Upgrade :upgrade="chip.clockSpeedUpgrade"></Upgrade>
+            <Upgrade :upgrade="chip.clockSpeedPurchase"></Upgrade>
+            <Upgrade :upgrade="chip.overclockPurchase"></Upgrade>
         </div>
     </div>
 </template>
@@ -73,6 +83,11 @@ defineProps({
 }
 
 .upgrade {
+    outline: 1px solid black;
+    text-align: center;
+}
+
+.overclock {
     outline: 1px solid black;
     text-align: center;
 }

@@ -2,18 +2,25 @@ import { z } from 'zod';
 
 import { Purchase } from './purchase';
 import { Strings } from './util/strings';
+import { formatBits } from './format';
+import { CostManager } from './cost-manager';
 
 export type DiskSchema = z.infer<typeof Disk.CODEC>;
 
 export class Disk {
+    static readonly DEFAULTS = {
+        capacity: 8,
+        bits: 0,
+    } as const;
+
     static readonly CODEC = z.object({
-        storage: z.number(),
-        bits: z.number(),
+        capacity: z.number().default(Disk.DEFAULTS.capacity),
+        bits: z.number().default(Disk.DEFAULTS.bits),
         id: z.number(),
     });
 
     static fromSchema(schema: DiskSchema): Disk {
-        const disk = new Disk(schema.id, schema.storage);
+        const disk = new Disk(schema.id, schema.capacity);
         disk.bits = schema.bits;
         return disk;
     }
@@ -33,25 +40,23 @@ export class Disk {
     }
 
     get name() {
-        return `${this.storage}b Disk (${this.diskLetter}:)`
+        return `${formatBits(this.capacity, true)} Disk`
     }
 
-    _storage: number;
-    get storage() {
-        return this._storage;
-    } private set storage(storage: number) {
-        this._storage = storage;
-    }
-
+    _capacity: number = 0;
     get capacity() {
-        return 2 ** this._storage - 1;
+        return this._capacity;
+    } private set capacity(capacity: number) {
+        this._capacity = capacity;
     }
 
-    get storageUpgrade(): Purchase {
+    private readonly _capacityCostManager;
+
+    get capacityPurchase(): Purchase {
         return new Purchase(
-            "x2 Storage",
-            this.capacity * 3.75 * (3 ** this.id),
-            () => this.storage *= 2,
+            "x2 Capacity",
+            this._capacityCostManager.getNextCostAt(this.capacity),
+            () => this.capacity *= 2,
         );
     }
 
@@ -62,11 +67,6 @@ export class Disk {
         this._bits = bits;
     }
 
-    get binaryBits(): string {
-        const binary = this._bits.toString(2);
-        return Strings.padStart(binary, this._storage, "0");
-    }
-
     get isFull(): boolean {
         return this.bits >= this.capacity;
     }
@@ -75,9 +75,17 @@ export class Disk {
         return Disk.CODEC.parse(this);
     }
 
-    constructor(id: number, storage: number) {
-        this._storage = storage;
+    constructor(id: number, capacity: number) {
         this.id = id;
+        this.capacity = capacity;
+        this._capacityCostManager = new CostManager(
+            16 * (1.15 ** this.id),
+            (amount, prevCost) => prevCost ** 1.07,
+            {
+                initialAmount: 8,
+                incrementer: prevAmount => prevAmount * 2,
+            }
+        );
     }
 
     increment(bits: number = 1): void {
@@ -97,6 +105,6 @@ export class Disk {
     }
 
     upgradeStorage(): void {
-        this.storage *= 2;
+        this.capacity *= 2;
     }
 }

@@ -17,7 +17,7 @@ defineProps({
 
 <template>
     <div class="outer-container">
-        <div class="cheader">{{ header }}</div>
+        <div class="cheader" :class="info ? '' : 'ctext'">{{ header }}</div>
         <div class="ctext" v-if="info">{{ info }}</div>
         <div class="inner-container">
             <slot></slot>
