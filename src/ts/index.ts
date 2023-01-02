@@ -6,6 +6,8 @@ import { update } from './loop';
 import { player } from './player';
 import { forceUpdateAll } from './component-registry';
 
+import '../css/styles.css';
+
 const app = createApp(App);
 
 async function main() {

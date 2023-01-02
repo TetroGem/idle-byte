@@ -7,15 +7,19 @@
     "build": "run-p type-check build-only",
     "preview": "vite preview",
     "build-only": "vite build",
-    "type-check": "vue-tsc --noEmit"
+    "type-check": "vue-tsc --noEmit",
+    "es5": "cd into assets folder then -> npx swc ./index-#####.js > ./out.js"
   },
   "dependencies": {
     "dexie": "^3.2.2",
+    "terser": "^5.16.1",
     "vue": "^3.2.45",
     "vue-router": "^4.1.6",
     "zod": "^3.20.2"
   },
   "devDependencies": {
+    "@swc/cli": "^0.1.59",
+    "@swc/core": "^1.3.24",
     "@types/node": "^18.11.12",
     "@vitejs/plugin-vue": "^4.0.0",
     "@vitejs/plugin-vue-jsx": "^3.0.0",

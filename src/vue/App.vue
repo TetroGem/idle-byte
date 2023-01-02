@@ -4,12 +4,12 @@ import InfoPanel from './InfoPanel.vue';
 import { getCurrentInstance } from 'vue';
 import { registerComponent } from '@/ts/component-registry';
 import ObjectsContainer from './ObjectsContainer.vue';
-import DebugInfo from './DebugInfo.vue';
+import DebugInfoComponent from './DebugInfoComponent.vue';
 import { formatBinary, formatBits, formatTime } from '@/ts/format';
 import { estimateSecondsUntil } from '@/ts/estimate';
 import ProgressBarBelow from './ProgressBarBelow.vue';
 import Overclockable from './Overclockable.vue';
-import Chip from './Chip.vue';
+import ChipComponent from './ChipComponent.vue';
 
 registerComponent(getCurrentInstance());
 </script>
@@ -87,7 +87,7 @@ registerComponent(getCurrentInstance());
                 :info="player.chips.length === 0 ? undefined : `Computing ${formatBits(player.stats.bitsPerSecond)}/s`"
                 v-if="player.stats.chipsUnlocked"
             >
-                <Chip v-for="chip in player.chips" class="disk-size" :chip="chip"/>
+                <ChipComponent v-for="chip in player.chips" class="disk-size" :chip="chip"/>
                 <div
                     class="disk disk-buy disk-size"
                     @click="player.buyPurchase(player.nextChipPurchase)"
@@ -100,10 +100,10 @@ registerComponent(getCurrentInstance());
         </div>
         <InfoPanel :selection="player.selection" />
     </div>
-    <DebugInfo />
+    <DebugInfoComponent />
 </template>
-
-<style src="@/css/styles.css" />
+<!-- 
+<style src="@/css/styles.css" /> -->
 
 <style scoped>
 html {
