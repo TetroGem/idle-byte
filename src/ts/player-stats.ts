@@ -31,11 +31,15 @@ export class PlayerStats {
     }
 
     get chipsUnlocked(): boolean {
-        return this.chipCount > 0 || this.maxBits > 75;
+        return this.chipCount > 0 || this.maxBits > 25;
     }
 
     get cloudUnlocked(): boolean {
         return this.boughtCloud || this.maxBits >= 256;
+    }
+
+    get internetUnlocked(): boolean {
+        return this.cloudUnlocked;
     }
 
     update(player: Player) {

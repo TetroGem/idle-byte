@@ -19,6 +19,8 @@ export class Cloud {
         currentUploadedBits: z.number().default(Cloud.DEFAULTS.currentUploadedBits),
     });
 
+    static readonly UPLOAD_MILLIS = 1000;
+
     static fromSchema(schema: CloudSchema): Cloud {
         const cloud = new Cloud();
         cloud.schema = schema;
@@ -49,7 +51,7 @@ export class Cloud {
 
     private readonly _uploadSpeedCostManager = new CostManager(
         512,
-        (amount, prevCost) => prevCost ** 1.085,
+        (amount, prevCost) => prevCost ** 1.0635,
         {
             initialAmount: 64,
             incrementer: prevAmount => prevAmount * 2,
@@ -78,14 +80,13 @@ export class Cloud {
     upload(bits: number): number {
         if(this.uploadStartTime === null) return 0;
 
-        const uploadProgress = Math.min((Date.now() - this.uploadStartTime) / 1000, 1);
-        const maxUploadableBits = Math.floor(uploadProgress * this.uploadSpeed) - this.currentUploadedBits;
+        const maxUploadableBits = Math.floor(this.uploadProgress * this.uploadSpeed) - this.currentUploadedBits;
         const uploadableBits = Math.max(Math.min(bits, maxUploadableBits), 0);
 
         this.bits += uploadableBits;
         this.currentUploadedBits += uploadableBits;
 
-        if(this.currentUploadedBits >= this.uploadSpeed || bits === 0) {
+        if(this.currentUploadedBits >= this.uploadSpeed || bits <= maxUploadableBits) {
             this.uploadStartTime = null;
         }
 
@@ -96,5 +97,11 @@ export class Cloud {
         const bitsDrained = Math.min(bits, this.bits);
         this.bits -= bitsDrained;
         return bitsDrained;
+    }
+
+    get uploadProgress(): number {
+        if(this.uploadStartTime === null) return 0;
+
+        return Math.min((Date.now() - this.uploadStartTime) / Cloud.UPLOAD_MILLIS, 1);
     }
 }

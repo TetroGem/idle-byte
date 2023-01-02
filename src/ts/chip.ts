@@ -9,7 +9,7 @@ import { formatHertz } from './format';
 export type ChipSchema = z.infer<typeof Chip.CODEC>;
 
 export class Chip {
-    static readonly OVERCLOCK_LENGTH_MILLIS = 2000;
+    static readonly OVERCLOCK_LENGTH_MILLIS = 5000;
     static readonly OVERCLOCK_COOLDOWN_MILLIS = 15000;
 
     static readonly DEFAULTS = {
@@ -90,7 +90,6 @@ export class Chip {
     }
 
     get overclockPurchase(): Purchase {
-        console.log(this.overclockCostManager);
         return new Purchase(
             "Overclocking",
             this.overclockCostManager.getNextCostAt(this.overclock),
@@ -103,7 +102,7 @@ export class Chip {
     }
 
     private get activeClockSpeed(): number {
-        const overclockMultiplier = this.isOverclocking ? this.overclock * 32 : 1;
+        const overclockMultiplier = this.isOverclocking ? 32 ** this.overclock : 1;
         const activeClockSpeed = this.clockSpeed * overclockMultiplier;
         return activeClockSpeed;
     }
@@ -116,6 +115,14 @@ export class Chip {
         return this.overclock > 0 && Date.now() - this.lastOverclockTime <= Chip.OVERCLOCK_LENGTH_MILLIS;
     }
 
+    get overclockProgress(): number {
+        return Math.min(1, (Date.now() - this.lastOverclockTime) / Chip.OVERCLOCK_LENGTH_MILLIS);
+    }
+
+    get overclockCooldownProgress(): number {
+        return Math.min(1, (Date.now() - this.lastOverclockTime) / Chip.OVERCLOCK_COOLDOWN_MILLIS);
+    }
+
     cycle(): void {
         if(this.targetDisk === null) return;
 
@@ -123,7 +130,7 @@ export class Chip {
 
         const millisPerCycle = (1000 / this.activeClockSpeed);
         const deltaMillis = Date.now() - this.lastUpdate;
-        this.targetDisk.increment(Math.ceil(deltaMillis / millisPerCycle));
+        this.targetDisk.increment(deltaMillis / millisPerCycle);
         this.lastUpdate = Date.now();
     }
 

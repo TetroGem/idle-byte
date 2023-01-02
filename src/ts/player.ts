@@ -161,7 +161,7 @@ export class Player {
         this.schema = decoded;
     }
 
-    private _lastSaveTime: number = -1;
+    private _lastSaveTime: number = Date.now();
     get lastSaveTime(): number {
         return this._lastSaveTime;
     } private set lastSaveTime(lastSaveTime: number) {
@@ -213,7 +213,7 @@ export class Player {
                 minBits = Math.min(minBits, a.bits, b.bits);
                 return (b.bits / b.capacity - a.bits / a.capacity) || (b.capacity - a.capacity);
             });
-            if(minBits * sortedDisks.length > bits) minBits = Math.ceil(bits / sortedDisks.length);
+            // if(minBits * sortedDisks.length > bits) minBits = Math.ceil(bits / sortedDisks.length);
 
             // remove the minBits from each disk, starting with the one that has the most bits on it
             let drained = 0;
@@ -254,8 +254,8 @@ export class Player {
             chip.cycle();
         }
         if(this.cloud !== null) {
-            const uploadedBits = this.cloud.upload(this.bits);
-            this.decrementBits(uploadedBits);
+            const uploadedBits = this.cloud.upload(this.bitsOnDisks);
+            this.drainDisks(uploadedBits);
         }
         this.bits = this.bitsOnDisks + this.bitsOnCloud;
 

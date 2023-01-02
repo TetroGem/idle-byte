@@ -4,6 +4,7 @@ import Upgrade from './Upgrade.vue';
 import type { Chip } from '@/ts/chip';
 import { player } from '@/ts/player';
 import { registerComponent } from '@/ts/component-registry';
+import Overclockable from './Overclockable.vue';
 
 registerComponent(getCurrentInstance());
 
@@ -29,7 +30,14 @@ defineProps({
         <br />
         <br />
         <span v-if="chip.overclock > 0">
-            <div class="overclock" @click="chip.activateOverclock()">Overclock {{ chip.overclock }}</div>
+            <Overclockable :chip="chip" style="height: 2%;">
+                <div class="overclock" @click="chip.activateOverclock()">
+                    <br />
+                    Overclock {{ chip.overclock }}
+                    <br />
+                    <br />
+                </div>
+            </Overclockable>
             <br />
         </span>
         <div class="upgrades-panel">

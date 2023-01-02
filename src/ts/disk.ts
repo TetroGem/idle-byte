@@ -21,7 +21,7 @@ export class Disk {
 
     static fromSchema(schema: DiskSchema): Disk {
         const disk = new Disk(schema.id, schema.capacity);
-        disk.bits = schema.bits;
+        disk.floatBits = schema.bits;
         return disk;
     }
 
@@ -39,32 +39,35 @@ export class Disk {
         return digits.reduce((letters, digit) => String.fromCharCode(64 + digit) + letters, "");
     }
 
-    get name() {
-        return `${formatBits(this.capacity, true)} Disk`
+    get nameWithoutLetter() {
+        return `${formatBits(this.capacity, true)} Disk`;
     }
 
-    _capacity: number = 0;
+    get name() {
+        return `${this.nameWithoutLetter} (${this.diskLetter}:)`;
+    }
+
+    _capacity: number = Disk.DEFAULTS.capacity;
     get capacity() {
         return this._capacity;
     } private set capacity(capacity: number) {
         this._capacity = capacity;
     }
 
-    private readonly _capacityCostManager;
+    private readonly capacityCostManager;
 
     get capacityPurchase(): Purchase {
         return new Purchase(
             "x2 Capacity",
-            this._capacityCostManager.getNextCostAt(this.capacity),
+            this.capacityCostManager.getNextCostAt(this.capacity),
             () => this.capacity *= 2,
         );
     }
 
-    _bits: number = 0;
+    private floatBits: number = Disk.DEFAULTS.bits;
+
     get bits() {
-        return this._bits;
-    } private set bits(bits: number) {
-        this._bits = bits;
+        return Math.floor(this.floatBits);
     }
 
     get isFull(): boolean {
@@ -78,8 +81,8 @@ export class Disk {
     constructor(id: number, capacity: number) {
         this.id = id;
         this.capacity = capacity;
-        this._capacityCostManager = new CostManager(
-            16 * (1.15 ** this.id),
+        this.capacityCostManager = new CostManager(
+            16 * (1.05 ** this.id),
             (amount, prevCost) => prevCost ** 1.07,
             {
                 initialAmount: 8,
@@ -89,8 +92,7 @@ export class Disk {
     }
 
     increment(bits: number = 1): void {
-        if(this.bits < this.capacity) this.bits += bits;
-        if(this.bits > this.capacity) this.bits = this.capacity;
+        this.floatBits = Math.min(this.floatBits + bits, this.capacity);
         // if(this.value >= 2 ** this.storage) this.value = 0; // overflow
     }
 
@@ -100,7 +102,7 @@ export class Disk {
      */
     drain(bits: number): number {
         const depleted = Math.min(bits, this.bits);
-        this.bits -= depleted;
+        this.floatBits -= depleted;
         return depleted;
     }
 
